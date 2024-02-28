@@ -40,10 +40,10 @@ python3 full_run.py --engine claude-1 --only_analysis
 
 After the analysis, a summary table is printed with the scores (before normalization) for the chosen agent, as well as human and random agents and reference scores for the models specified with the `--compare_with` flag (default: gpt-4, claude-2). The performance and behavior normalized scores versus the models specified with the `--compare_with` flag are also plotted. The plots are saved in the `./Analysis/plots/phenotypes/full_runs{interest}.pdf` directory.
 
-You can specify the models to compare against when running the script. For example, to compare against gpt-4 and human, you would use the `--compare_with` flag like this:
+You can specify the models to compare against when running the script. For example, to compare against gpt-4 and claude-1, you would use the `--compare_with` flag like this:
 
 ```bash
-python3 full_run.py --engine random --compare_with gpt-4 claude-1 claude-2
+python3 full_run.py --engine random --compare_with gpt-4 claude-1 
 ```
 
 ## Reference
