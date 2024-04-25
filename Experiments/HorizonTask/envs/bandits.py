@@ -1,8 +1,8 @@
 import math
 import numpy as np
-import gym
-from gym import error, spaces, utils
-from gym.utils import seeding
+import gymnasium as gym
+from gymnasium import error, spaces, utils
+from gymnasium.utils import seeding
 from torch.distributions import Normal, Bernoulli, MultivariateNormal
 import torch.nn.functional as F
 import torch

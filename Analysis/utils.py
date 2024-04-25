@@ -569,7 +569,7 @@ def calculate_distances(metrics_dict, feature_of_interest, embedding):
 
 def merge_all_metrics_and_features(experiments, excluding_agents, llm_df):
     """
-    This function reads in the engine features and scores data, and calculates the mean scores for each engine in each experiment.
+    This function reads in the engine features and scores data, and calculates the mean scores and cis for each engine in each experiment.
 
     Parameters:
     experiments (dict): A dictionary where the keys are the experiment names and the values are lists of score names.
@@ -577,6 +577,7 @@ def merge_all_metrics_and_features(experiments, excluding_agents, llm_df):
 
     Returns:
     metrics (dict): A dictionary where the keys are the engine names and the values are lists of mean scores for each score name in each experiment.
+    metrics_cis (dict): A dictionary where the keys are the engine names and the values are lists of confidence intervals for each score name in each experiment.
     """
 
     # Get a list of engines to include in the analysis
@@ -584,6 +585,7 @@ def merge_all_metrics_and_features(experiments, excluding_agents, llm_df):
 
     # Initialize a dictionary to store the metrics for each engine
     metrics = {engine:[] for engine in including_agents if engine not in excluding_agents}
+    metrics_cis = {engine:[] for engine in including_agents if engine not in excluding_agents}
 
     # Loop over the experiments
     for experiment, scores_names in experiments.items():
@@ -599,6 +601,11 @@ def merge_all_metrics_and_features(experiments, excluding_agents, llm_df):
 
                 # Handle special case for the BART experiment and the human engine
                 if (experiment == 'BART') & (engine == 'human'):
+                    std_men = np.sqrt(7.7**2 + 2**2 + 0.6**2) 
+                    std_women = np.sqrt(7.1**2 + 1.8 **2+ 0.5**2)
+                    std_total = np.sqrt(std_men ** 2 + std_women ** 2)
+                    ci_hum = 1.96 * std_total / np.sqrt(82)
+                    metrics_cis['human'].append(ci_hum)
                     if score_name == 'behaviour_score1':
                         men = 32.2*(1+9.1/30) + 7.6*(1+16.5/30) + 1.2*(1+22.2/30)
                         women = 26.4*(1+7.6/30) + 8*(1+15/30) + 1.4*(1+21.7/30)
@@ -610,10 +617,17 @@ def merge_all_metrics_and_features(experiments, excluding_agents, llm_df):
                     # Calculate the mean score for the engine and add it to the metrics dictionary
                     mean_score = np.mean(engine_scores)
                     metrics[engine].append(mean_score)
+                    if f'{score_name}_CI' in df.columns:
+                        ci = df[df['engine'] == engine][f'{score_name}_CI'].values[0]
+                    else:
+                        std_score = np.std(engine_scores)
+                        ci = 1.96 * std_score / np.sqrt(len(engine_scores))
+                    ci = np.nan_to_num(ci)
+                    metrics_cis[engine].append(ci)
 
                     # Check for NaN values
                     if np.isnan(mean_score):
                         print(f"Engine {engine} has NaN values for {score_name} in experiment {experiment}")
                         import ipdb; ipdb.set_trace()
 
-    return metrics
+    return metrics, metrics_cis

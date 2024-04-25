@@ -181,8 +181,9 @@ class TemporalDiscuountingExpForLLM(Experiment):
                 text = text[:-1]
             else:
             # If text is empty, have to choose what to do. For now hits debugger.
-                print(f'{original_text} as option so storing nan')
-                return np.nan
+                print(f'{original_text} as option so storing rdm output')
+                return self.random_fct()
+
 
         return text
 

@@ -2,7 +2,7 @@ import os, sys
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-import gym
+import gymnasium as gym
 from scipy.optimize import differential_evolution
 import torch
 import torch.nn.functional as F

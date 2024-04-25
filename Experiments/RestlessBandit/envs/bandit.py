@@ -1,9 +1,9 @@
 import numpy as np
-import gym
-from gym import error, spaces, utils
+import gymnasium as gym
+from gymnasium import error, spaces, utils
 import torch
 
-class MetacognitionEnv(gym.Env):
+class MetacognitionEnv():
     """
     Description:
         A casino owns two slot machines named machine F and J. You earn $ each time you play on one of these machines with one

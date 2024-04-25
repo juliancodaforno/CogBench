@@ -4,12 +4,19 @@ import seaborn as sns
 import argparse
 from utils import merge_all_metrics_and_features
 
-def normalize_metrics(df, metrics):
+def normalize_metrics(df, df_cis, metrics):
+    #create a csv file from the matrix of size metrics * (2) where 2 represents columns random and human
     for metric in metrics:
-        df[metric] = (df[metric] - df.loc[df['Agent'] == 'random', metric].values)
-        df[metric] /= df.loc[df['Agent'] == 'human', metric].values
+        random_values = df.loc[df['Agent'] == 'random', metric].values
+        df[metric] = abs(df[metric] - random_values)
+        human_values = df.loc[df['Agent'] == 'human', metric].values
+        df[metric] = df[metric] / human_values
 
-    return df
+
+        # Normalize the confidence intervals to the same scale
+        df_cis[metric] = abs(df_cis[metric]) / human_values
+
+    return df, df_cis
 
 def exclude_agents():
     '''
@@ -25,15 +32,16 @@ def exclude_agents():
             excluding_agents.append(engine)
     return excluding_agents
 
-def prepare_data_for_plotting(df, metrics):
+def prepare_data_for_plotting(df, df_cis, metrics):
     agents = df.Agent.unique()
     rows = []
     for metric in metrics:
         for agent in agents:
             value = df[df['Agent'] == agent][metric].item()
-            rows.append([value, agent, metric])
+            ci = df_cis[df_cis['Agent'] == agent][metric].item()
+            rows.append([value, agent, metric, ci])
 
-    return pd.DataFrame(rows, columns=['Value', 'Model', 'Task'])
+    return pd.DataFrame(rows, columns=['Value', 'Model', 'Task', 'CI'])
 
 def filter_models(dp, models):
     dp = dp[~dp['Model'].isin(['human', 'random']) & dp['Model'].isin(models)]
@@ -42,20 +50,22 @@ def filter_models(dp, models):
 def plot_data(dp, filename,metrics_names, behav=False, store_id='0'):
     models = dp['Model'].unique()
     n_models = len(models)
-    # fig, axs = plt.subplots(1, n_models, figsize=(1.5 * n_models, 3.5))
     fig, axs = plt.subplots(1, n_models, figsize=(10.5, 3.5))
-    # fig, axs = plt.subplots(1, n_models, figsize=(7, 7))
 
     if behav:
-        # metrics_perf = ['Bayesian update', 'Exploration', 'Meta-cognition',  'Learning rate', 'Model-basedness','Risk']
         colors = ['tab:green', 'tab:green', 'tab:orange', 'tab:orange', 'tab:blue', 'tab:red', 'tab:red', 'tab:brown', 'tab:cyan', 'tab:purple']  # Add more colors if needed
     else:
         colors = ['tab:green', 'tab:orange', 'tab:blue', 'tab:red', 'tab:brown', 'tab:purple']  # Add more colors if needed
 
-    models_names = ["GPT-4", "text-davinci-003", "Claude-2", "Claude-1", "text-bison", "LLaMA-2-70", "LLaMA-2-70-chat"]
+    # Here hardcode names for paper and activated only if store_id is set to 0
+    models_names = ["GPT-4", "text-davinci-003", "Claude-2", "text-bison", "LLaMA-2-70", "LLaMA-2-70-chat"]
     for i, (ax, model) in enumerate(zip(axs, models)):
         dp_model = dp[dp['Model'] == model]
-        sns.barplot(data=dp_model, x='Value', y='Task', ax=ax, alpha=0.6, hue='Task', palette=colors, dodge=False,)
+        sns.barplot(data=dp_model, x='Value', y='Task',  ax=ax, alpha=0.6, hue='Task', palette=colors, dodge=False)
+        #Loop to add error bar to each bar
+        for j, metric in enumerate(metrics_names):
+            ci = dp_model[dp_model['Task'] == metric]['CI'].values[0]
+            ax.errorbar(dp_model[dp_model['Task'] == metric]['Value'], j, xerr=ci/2,  color='black', capsize=2)
         if store_id == '0':
             ax.set_title(models_names[i], fontsize=10)
         else:
@@ -77,19 +87,19 @@ def plot_data(dp, filename,metrics_names, behav=False, store_id='0'):
         else:
             ax.set_yticks(range(len(metrics_names)))
             ax.set_yticklabels(metrics_names)
-            ax.set_xlabel('                                                                                                                                                                                                       Values (Normalized: Random=0, Human=1)')    
+            ax.set_xlabel('                                                                                                                                                                                                       Values (Normalized: Random=0, Human average=1)')    
 
     plt.tight_layout()
     plt.savefig(f'./plots/phenotypes/{store_id}{filename}')
 
-def run():
+def run(models=None, interest=None, store_id=None):
     """
     Main function to compare models based on behavior or performance.
     """
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Compare models and optionally print scores.')
-    parser.add_argument('--models', nargs='+', default=["gpt-4", "text-davinci-003", "claude-2", "claude-1", "text-bison@002", "llama-2-70", "llama-2-70-chat"], help='List of models to compare. You need at least two models to compare and we recommend at most 7!')
+    parser.add_argument('--models', nargs='+', default=["gpt-4", "text-davinci-003", "claude-2", "text-bison@002", "llama-2-70", "llama-2-70-chat"], help='List of models to compare. You need at least two models to compare and we recommend at most 7!')
     parser.add_argument('--print_scores', action='store_true', help='If set, print the scores for each model.')
     parser.add_argument('--print_scores_for', nargs='+', default=["gpt-4", "human", "random"], help='List of models for which to print scores.')
     parser.add_argument('--store_id', type=str, default='', help='If set, store the plot with this unique identifier.')
@@ -98,10 +108,16 @@ def run():
     args = parser.parse_args()
 
     # Extract arguments
-    models = args.models
+    if models is None:
+        models = args.models
+    if interest is None:
+        interest = args.interest
+    if store_id is None:
+        store_id = args.store_id
+
+
     print(models)
-    interest = args.interest
-    store_id = args.store_id
+
 
     # Define metrics and experiments based on the interest. Here the default are the ones in the paper.
     if interest == 'behaviour':
@@ -130,12 +146,15 @@ def run():
         output='performance.pdf'
 
     # Merge all metrics and features
-    metrics = merge_all_metrics_and_features(experiments, exclude_agents(), pd.read_csv('./data/llm_features.csv'))
+    metrics, metrics_cis = merge_all_metrics_and_features(experiments, exclude_agents(), pd.read_csv('./data/llm_features.csv'))
 
     # Create a dataframe with the metrics
     df = pd.DataFrame(metrics).T
+    df_cis = pd.DataFrame(metrics_cis).T
     df.columns = metrics_names
+    df_cis.columns = metrics_names
     df = df.reset_index().rename(columns={'index': 'Agent'})
+    df_cis = df_cis.reset_index().rename(columns={'index': 'Agent'})
 
     # Print scores for specified models
     if args.print_scores:
@@ -148,8 +167,8 @@ def run():
     # df.to_csv(f'./data/{interest}.csv'); df = pd.read_csv(f'./data/{interest}.csv')
 
     # Normalize metrics and prepare data for plotting
-    df = normalize_metrics(df, metrics_names)
-    dp = prepare_data_for_plotting(df, metrics_names)
+    df, df_cis = normalize_metrics(df, df_cis, metrics_names)
+    dp = prepare_data_for_plotting(df, df_cis, metrics_names)
     dp = filter_models(dp, models)
 
     # Plot data
@@ -158,3 +177,4 @@ def run():
 
 if __name__ == "__main__":
     run()
+

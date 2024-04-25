@@ -76,7 +76,6 @@ class LLM:
         self.format_answer = "" #Default format of the answer is empty
         self.default_query_specifications = "" #Default query specifications is empty
 
-
     def generate(self, text, temp=None, max_tokens=None):
         """ Generate a response from the LLM. 'temp' and 'max_tokens' are made optional to be able to use the same function for all LLMs."""
         if temp is None:
@@ -203,6 +202,14 @@ class RandomLLM(LLM):
     def random_fct(self):
         raise NotImplementedError("Should set this random function depending on the task!")
     
+class InteractiveLLM(LLM):
+    def __init__(self, llm_info):
+        super().__init__(llm_info)
+        print("Interactive agent is used!")
+
+    def _generate(self, text, temp, max_tokens):
+        return input(f"{text}")
+        
 class StoringScores:
     """Analyze the results of the run"""
     def __init__(self):

@@ -4,5 +4,11 @@ openai==0.27.4
 pandas==2.2.0
 python-dotenv==1.0.1
 statsmodels==0.14.1
-anthropic==0.2.10
+anthropic==0.19.2
 torch==2.1.2
+gymnasium==0.26.3 #Or gymnasium==0.19.0
+tqdm==4.66.2 
+google-cloud-aiplatform==1.42.1
+transformers==4.37.2
+umap-learn==0.5.5
+seaborn==0.13.2

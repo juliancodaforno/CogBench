@@ -15,6 +15,10 @@ class HF_API_LLM(LLM):
         padtokenId = 50256 # Falcon needs that to avoid some annoying warning
         if engine.startswith("falcon"):
             engine = "tiiuae/" + engine 
+        elif engine.startswith("Yi"):
+            engine = "01-ai/" + engine
+        elif (engine.startswith("mixtral")) or (engine.startswith("Mixtral")) or (engine.startswith("mistral")) or (engine.startswith("Mistral")):
+            engine = "mistralai/" + engine
         elif engine.startswith("mpt"):
             engine = "mosaicml/" + engine
         elif engine.startswith("vicuna"):

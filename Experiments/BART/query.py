@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import gym
+import gymnasium as gym
 from envs.bart_env import Bart_env
 import statsmodels.api as sm
 import sys, os
@@ -55,63 +55,128 @@ class RiskExpForLLM(Experiment):
         llm_choice = lambda x: self.del_letters_at_end(llm.generate(x))
         trials = self.parser.parse_args().trials
 
+        if self.parser.parse_args().version_number == '1':
+            trials = 15
+        elif self.parser.parse_args().version_number == '2':
+            trials = 30
+
         env = Bart_env(self.parser.parse_args().max_pumps, trials)
         data = {'trial': [], 'pumps': [], 'reward': [], 'max_pumps': [], 'exploded': [], 'balloon_trial': [], 'balloon_idx': []}
 
         alphabet = 'ABCDEFGHIJ'[:env._no_balloons]
-        instructions = f"In this game will encounter {env._no_balloons} different balloons labeled {', '.join(alphabet[:-1]) + ' and ' + alphabet[-1]}."\
-        f" There will be a total of {trials} balloons for each type of balloon. Your goal is to accumulate as many points as possible without popping the balloon."\
-        " You will be presented with a balloon and given the option to inflate it or not."\
-        " Each inflation increases the balloon's size and potential points, but also carries a risk of the balloon popping. "\
-        "Your task is to decide whether to inflate the balloon or not knowing that a successful inflation adds 1 point from that balloon."\
-        " Once you decide to stop inflating the balloon, you can no longer earn points "\
-        "from that balloon. If the balloon pops before you stop inflating (skip), you will lose all the points accumulated for that balloon. "\
-        f"Your final score will be determined by the total number of points earned across all {trials*env._no_balloons} balloons. "\
-        "Your goal is to maximize your final score. "
-        history = ""
 
-        # Run the experiment for each balloon by looping through the trials and randomly sampling a balloon
-        for trial in range(trials*env._no_balloons):
-            balloon_idx = env.randomly_sample()
-            pursuing = True; no_pumps = 0; observations = ""
-            while pursuing:
-                actions = np.random.choice([1, 2], size=2, replace=False)
-                prompt = instructions + history + observations + f"{Q_} You are currently with balloon {trial+1} which is a balloon of type {alphabet[balloon_idx]}. "\
-                    f"What do you do? (Option {actions[0]} for 'skip' or Option {actions[1]} for 'inflate')"
-                if (trial == 0) & (no_pumps == 0):
-                    history += f"\n\n You observed the following previously where the type of balloon is given in parenthesis:"
+        if self.parser.parse_args().version_number == '1':
+            instructions = f"In this game you will encounter {env._no_balloons} different balloons labeled {', '.join(alphabet[:-1]) + ' and ' + alphabet[-1]}."\
+            f" There will be a total of {trials} balloons for each type of balloon. Your goal is to accumulate as many points as possible without popping the balloon."\
+            " You will be presented with a balloon and given the option to inflate it or not."\
+            " Each inflation increases the balloon's size and potential points, but also carries a risk of the balloon popping. "\
+            "Your task is to decide whether to inflate the balloon or not knowing that a successful inflation adds 1 point from that balloon."\
+            " Once you decide to stop inflating the balloon, you can no longer earn points "\
+            "from that balloon. If the balloon pops before you stop inflating (skip), you will lose all the points accumulated for that balloon. "\
+            f"Your final score will be determined by the total number of points earned across all {trials*env._no_balloons} balloons. "\
+            "Your goal is to maximize your final score. "
+            history = ""
 
-                action_taken = llm_choice(prompt)
-                try:
-                    action_taken = int(action_taken)
-                except:
-                    print(f"Invalid action... \{action_taken}\. Please try again.")
-                    import ipdb; ipdb.set_trace()
-                                
-                if action_taken == actions[0]:
-                    pursuing = False
-                    exploded = False
-                elif action_taken == actions[1]:
-                    exploded = env.step(balloon_idx, N=env._max_pumps[balloon_idx]-no_pumps)
-                    no_pumps += 1
-                    if exploded:
+            # Run the experiment for each balloon by looping through the trials and randomly sampling a balloon
+            for trial in range(trials*env._no_balloons):
+                print(f"Trial {trial}")#TODO: REMOVE THIS WHEN YOU SEE IT, WAS THERE FOR DEBUGGING PURPOSES
+                balloon_idx = env.randomly_sample()
+                pursuing = True; no_pumps = 0; observations = ""
+
+                while pursuing:
+                    actions = np.random.choice([1, 2], size=2, replace=False)
+                    prompt = instructions + history + observations + f"{Q_} You are currently with balloon {trial+1} which is a balloon of type {alphabet[balloon_idx]}. "\
+                        f"What do you do? (Option {actions[0]} for 'skip' or Option {actions[1]} for 'inflate')"
+                    if (trial == 0) & (no_pumps == 0):
+                        history += f"\n\n You observed the following previously where the type of balloon is given in parenthesis:"
+
+                    action_taken = llm_choice(prompt)
+                    try:
+                        action_taken = int(action_taken)
+                    except:
+                        print(f"Invalid action... \\{action_taken}\\. Please try again.")
+                        import ipdb; ipdb.set_trace()
+                                    
+                    if action_taken == actions[0]:
                         pursuing = False
-                else:
-                    print(f"Invalid action... \{action_taken}\. Please try again.")
-                    import ipdb; ipdb.set_trace()
+                        exploded = False
+                    elif action_taken == actions[1]:
+                        exploded = env.step(balloon_idx, N=env._max_pumps[balloon_idx]-no_pumps)
+                        no_pumps += 1
+                        if exploded:
+                            pursuing = False
+                    else:
+                        print(f"Invalid action... \\{action_taken}\\. Please try again.")
+                        import ipdb; ipdb.set_trace()
 
-                observations = f"\n -Balloon {trial+1} ({alphabet[balloon_idx]}): You inflated the balloon {no_pumps} times for a total of {no_pumps*1} points."\
-            
-            # Data storage
-            history += f"\n -Balloon {trial+1} ({alphabet[balloon_idx]}): You inflated the balloon {no_pumps} times for a total of {0 if exploded else no_pumps*1} points. It did {'' if exploded else 'not '}explode."
-            data['trial'].append(trial)
-            data['exploded'].append(exploded)
-            data['pumps'].append(no_pumps)
-            data['reward'].append(no_pumps*1*(not exploded))
-            data['max_pumps'].append(env._max_pumps[balloon_idx])
-            data['balloon_trial'].append(trials - env._trials_left[balloon_idx])
-            data['balloon_idx'].append(balloon_idx)
-            env.reset_idx(balloon_idx)
+                    observations = f"\n -Balloon {trial+1} ({alphabet[balloon_idx]}): You inflated the balloon {no_pumps} times for a total of {no_pumps*1} points."\
+                
+                # Data storage
+                history += f"\n -Balloon {trial+1} ({alphabet[balloon_idx]}): You inflated the balloon {no_pumps} times for a total of {0 if exploded else no_pumps*1} points. It did {'' if exploded else 'not '}explode."
+                data['trial'].append(trial)
+                data['exploded'].append(exploded)
+                data['pumps'].append(no_pumps)
+                data['reward'].append(no_pumps*1*(not exploded))
+                data['max_pumps'].append(env._max_pumps[balloon_idx])
+                data['balloon_trial'].append(trials - env._trials_left[balloon_idx])
+                data['balloon_idx'].append(balloon_idx)
+                env.reset_idx(balloon_idx)
+        
+        elif self.parser.parse_args().version_number == '2': 
+            instructions = f"In this game you will encounter {env._no_balloons} different candy dispensers labeled {', '.join(alphabet[:-1]) + ' and ' + alphabet[-1]}."\
+            f" There will be a total of {trials} candy dispensers for each type. Your goal is to accumulate as many candies as possible without causing the dispenser to explode."\
+            " You will be presented with a candy dispenser and given the option to pump candies into a container or not."\
+            " Each pump adds one candy to the container but also carries a risk of the dispenser exploding. "\
+            "Your task is to decide whether to pump candies or not, knowing that a successful pump adds 1 candy from that dispenser."\
+            " Once you decide to stop pumping candies from a dispenser, you can no longer earn candies from that dispenser. "\
+            " If the dispenser explodes before you stop pumping, you will lose all the candies accumulated from that dispenser.  "\
+            f"Your final score will be determined by the total number of candies earned across all {trials*env._no_balloons} dispensers. "\
+            "Your goal is to maximize your final number of candies. "
+            history = ""
+
+            # Run the experiment for each balloon by looping through the trials and randomly sampling a balloon
+            for trial in range(trials*env._no_balloons):
+                balloon_idx = env.randomly_sample()
+                pursuing = True; no_pumps = 0; observations = ""
+
+                while pursuing:
+                    actions = np.random.choice([1, 2], size=2, replace=False)
+                    prompt = instructions + history + observations + f"{Q_} You are currently with dispenser {trial+1} which is a dispenser of type {alphabet[balloon_idx]}. "\
+                        f"What do you do? (Option {actions[0]} for 'skip' or Option {actions[1]} for 'pump candies')"
+                    if (trial == 0) & (no_pumps == 0):
+                        history += f"\n\n You observed the following previously where the type of dispenser is given in parenthesis:"
+
+                    action_taken = llm_choice(prompt)
+                    try:
+                        action_taken = int(action_taken)
+                    except:
+                        print(f"Invalid action... \\{action_taken}\\. Please try again.")
+                        import ipdb; ipdb.set_trace()
+                                    
+                    if action_taken == actions[0]:
+                        pursuing = False
+                        exploded = False
+                    elif action_taken == actions[1]:
+                        exploded = env.step(balloon_idx, N=env._max_pumps[balloon_idx]-no_pumps)
+                        no_pumps += 1
+                        if exploded:
+                            pursuing = False
+                    else:
+                        print(f"Invalid action... \\{action_taken}\\. Please try again.")
+                        import ipdb; ipdb.set_trace()
+
+                    observations = f"\n -Dispenser {trial+1} ({alphabet[balloon_idx]}): You pumped {no_pumps} times for a total of {no_pumps*1} candy."\
+                
+                # Data storage
+                history += f"\n -Dispenser {trial+1} ({alphabet[balloon_idx]}): You pumped {no_pumps} times for a total of {0 if exploded else no_pumps*1} candies. It did {'' if exploded else 'not '}explode."
+                data['trial'].append(trial)
+                data['exploded'].append(exploded)
+                data['pumps'].append(no_pumps)
+                data['reward'].append(no_pumps*1*(not exploded))
+                data['max_pumps'].append(env._max_pumps[balloon_idx])
+                data['balloon_trial'].append(trials - env._trials_left[balloon_idx])
+                data['balloon_idx'].append(balloon_idx)
+                env.reset_idx(balloon_idx)
         
         df = pd.DataFrame(data, columns=['trial', 'pumps', 'reward', 'max_pumps', 'exploded', 'balloon_trial', 'balloon_idx'])
         return df
@@ -127,6 +192,9 @@ class RiskExpForLLM(Experiment):
         Returns:
             text (str): text with letters deleted from end
         '''
+        if len(text) == 0:
+            print("Empty text so choosing randomly between the arms.")
+            return self.random_fct()
         if len(text) > 1:
             text = text.replace('.', '').replace(',', '').replace(' ', '').replace('\n', '').replace(':', '').replace('-', '').replace('(', '').replace(')', '').replace('*', '')
         while text[-1].isalpha():

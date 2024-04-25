@@ -2,7 +2,7 @@ from torch.distributions import Binomial
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import gym
+import gymnasium as gym
 import envs
 import sys, os
 import matplotlib.pyplot as plt
@@ -58,7 +58,7 @@ class TwoArmedBandit4Context_ExpForLLM(Experiment):
         llm.random_fct = self.random_fct
         llm.format_answer = "Machine "
         llm.default_query_specifications = '(Give the answer in the form \"Machine <your answer>.\")'
-        # Define a function that generates a choice from the LLM and keeps only the choices that are in self.arms
+        # Define a function that generates a choice from the LLM and keeps only the choices that are in self.arms        
         llm_choice = lambda x: self.keep_arms(llm.generate(x))
         data = []
         done = False
@@ -72,10 +72,10 @@ class TwoArmedBandit4Context_ExpForLLM(Experiment):
             prompt = instructions + trials_left + "\n" + history + "\n"+ question
             # LLM acts
             self.arms = [i for i in env.arms[int(current_machine)-1].keys()]
+            llm.generate(prompt)
             action = llm_choice(prompt)
             if action not in env.arms[int(current_machine)-1].keys():
                 print(f'Invalid action: {action} not in {env.arms[int(current_machine)-1].keys()}')
-                import ipdb; ipdb.set_trace()
                 print('---')
 
             action_int = int(env.arms[int(current_machine)-1][action]) #torch.tensor([int(action)])
@@ -105,6 +105,11 @@ class TwoArmedBandit4Context_ExpForLLM(Experiment):
         Returns:
             text (str): text with only arms
         '''
+        if len(text) == 0:
+            print(f"Something is wrong, there is no text to keep arms from. Usually means it was an output of linebreaks and usually increasing --max-tokens 3 or 4 for that llm should help.")
+            # import ipdb; ipdb.set_trace()
+            # If text is empty, the LLM will choose randomly between the arms
+            return self.rdm_choice_agent()
         while text[-1] not in self.arms:
             if len(text) == 0:
                 text = text[:-1]

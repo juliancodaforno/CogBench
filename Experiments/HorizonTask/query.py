@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import gym
+import gymnasium as gym
 # import envs.bandits
 import statsmodels.api as sm
 import envs

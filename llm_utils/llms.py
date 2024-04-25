@@ -4,6 +4,7 @@ import time
 import anthropic
 import openai
 from ..base_classes import RandomLLM 
+from ..base_classes import InteractiveLLM
 from dotenv import load_dotenv
 # Import scripts for the different LLMs
 from .gpt import GPT3LLM, GPT4LLM
@@ -31,7 +32,9 @@ def get_llm(engine, temp, max_tokens, with_suffix=False):
         cot = True
 
     # Check which engine is being used and assign the corresponding LLM object with the required parameters (e.g: API keys)
-    if engine.startswith("text-davinci") or engine.startswith("text-curie") or engine.startswith("text-babbage") or engine.startswith("text-ada"):
+    if engine == "interactive":
+        llm = InteractiveLLM('interactive')
+    elif engine.startswith("text-davinci") or engine.startswith("text-curie") or engine.startswith("text-babbage") or engine.startswith("text-ada"):
         load_dotenv(); gpt_key = os.getenv("OPENAI_API_KEY")
         llm = GPT3LLM((gpt_key, engine, with_suffix))
     elif engine.startswith("gpt"):

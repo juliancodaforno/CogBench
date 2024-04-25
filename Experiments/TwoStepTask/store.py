@@ -25,20 +25,23 @@ class StoringModelBasednessScores(StoringScores):
         args = self.parser.parse_args()
         engines = args.engines
 
+        scores_csv_name = f"scores_data{'V' + args.version_number if args.version_number != '1' else ''}.csv"
+        data_folder = f'data{"V"+args.version_number if args.version_number != "1" else ""}'
+
         if 'all' in args.engines:
             # if the csv file in format ./data/{engine}.csv exists then add to the list of engines
-            engines = [file.split('.')[0] for file in os.listdir('./data') if os.path.isfile(f'./data/{file}') and file.split('.')[1] == 'csv']
+            engines = [os.path.splitext(file)[0] for file in os.listdir(data_folder)]
             
         # Check if scores_data exists, else, add the column names 
-        storing_df =  pd.read_csv('scores_data.csv') if os.path.isfile('scores_data.csv') else pd.DataFrame(columns=self.columns)
-        
+        storing_df =  pd.read_csv(scores_csv_name) if os.path.isfile(scores_csv_name) else pd.DataFrame(columns=self.columns)
+
         # Loop across engines and runs and store the scores
         for engine in tqdm(engines):
             print(f'Fitting for engine: {engine}-------------------------------------------')
-            path = f'data/{engine}.csv'
+            path = f'{data_folder}/{engine}.csv'
             full_df = pd.read_csv(path)
             storing_df = self.get_scores(full_df, storing_df, engine, run=0)
-            storing_df.to_csv('scores_data.csv', index=False)
+            storing_df.to_csv(scores_csv_name, index=False)
 
     def get_scores(self, df, storing_df, engine, run):
         """Get the scores for the two-armed bandit task.

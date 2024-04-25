@@ -2,9 +2,8 @@ import argparse
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import gym
-# import envs.bandit
-import envs
+import gymnasium as gym
+from envs.bandit import MetacognitionEnv
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))) #allows to import CogBench as a package
 from CogBench.base_classes import Experiment
@@ -40,7 +39,8 @@ class MetacognitionExpForLLM(Experiment):
             mean_rewards = [40, 60]
         elif self.parser.parse_args().version_number == '2':
             mean_rewards = [-10, 10]
-        env = gym.make('metacognition-v0', no_blocks=4, mean_rewards=mean_rewards)
+        
+        env = MetacognitionEnv(no_blocks=4, mean_rewards=mean_rewards)
         return env
     
     def run_single_experiment(self, llm):
@@ -55,14 +55,25 @@ class MetacognitionExpForLLM(Experiment):
         llm_choice = lambda x: self.keep_arms(llm.generate(x), self.arms)
         llm_confidence = lambda x: self.del_letters_at_end(llm.generate(x))
 
-        instructions = lambda x: f"{Q_} You are going to a casino that owns two slot machines named machine {x[0]} and {x[1]}.\n"\
-            "You earn $ each time you play on one of these machines with one"\
-            " machine always having a higher average $ reward. Every 18 to 22 "\
-            "trials a switch of block takes place and the other slot machine will now give the "\
-            "higher point reward in average. However, you are not told about the change of block. After each choice you have to indicate how confident "\
-            "you were about your choice being the best on a scale from 0 to 1. The casino includes 4 blocks of 18 to 22 trials, for a total of 80 trials \'t\'."\
-            " Your goal is to interact with both machines and optimize your $ as much as possible by identifying the best machine at a given point in time which comes in hand with being attentive at a potential change of block."\
-            " The rewards will range between 20$ and 80$."\
+        if self.parser.parse_args().version_number == '1':
+            instructions = lambda x: f"{Q_} You are going to a casino that owns two slot machines named machine {x[0]} and {x[1]}.\n"\
+                "You earn $ each time you play on one of these machines with one"\
+                " machine always having a higher average $ reward. Every 18 to 22 "\
+                "trials a switch of block takes place and the other slot machine will now give the "\
+                "higher reward in average. However, you are not told about the change of block. After each choice you have to indicate how confident "\
+                "you were about your choice being the best on a scale from 0 to 1. The casino includes 4 blocks of 18 to 22 trials, for a total of 80 trials \'t\'."\
+                " Your goal is to interact with both machines and optimize your $ as much as possible by identifying the best machine at a given point in time which comes in hand with being attentive at a potential change of block."\
+                " The rewards will range between 20$ and 80$."
+        elif self.parser.parse_args().version_number == '2':
+            instructions = lambda x: f"{Q_} You are participating in an experiment where you need to interact with two gaming machines named machine {x[0]} and {x[1]}.\n"\
+                "You earn points each time you play on one of these machines with one"\
+                " machine always having a higher average point reward. Every 18 to 22 "\
+                "trials a switch of block takes place and the other gaming machine will now give the "\
+                "higher point reward in average. However, you are not told about the change of block. After each choice you have to indicate how confident "\
+                "you were about your choice being the best on a scale from 0 to 1. The experiment includes 4 blocks of 18 to 22 trials, for a total of 80 trials \'t\'."\
+                " Your goal is to interact with both machines and optimize your points as much as possible by identifying the best machine at a given point in time which comes in hand with being attentive at a potential change of block."\
+                " The rewards will range between -20 and 20 points."
+
 
         query = lambda x: f"\n\nYou are now in trial t={env.t+1}. Which machine do you choose between machine {x[0]} and {x[1]}?"
         history = "" 
@@ -93,8 +104,14 @@ class MetacognitionExpForLLM(Experiment):
             block_ = env.block
             _, reward, _, _ = env.step(action)
             if env.t == 1:
-                history += "\n\nYou have received the following amount of $ when playing in the past: \n"
-            history += f"t={env.t}: You chose {letter_choice} with a reported confidence of {confidence}. It rewarded {int(reward)} $.\n" 
+                if self.parser.parse_args().version_number == '1':
+                    history += "\n\nYou have received the following amount of $ when playing in the past: \n"
+                elif self.parser.parse_args().version_number == '2':
+                    history += "\n\nYou have received the following amount of points when playing in the past: \n"
+            if self.parser.parse_args().version_number == '1':
+                history += f"t={env.t}: You chose {letter_choice} with a reported confidence of {confidence}. It rewarded {int(reward)} $.\n" 
+            elif self.parser.parse_args().version_number == '2':
+                history += f"t={env.t}: You chose {letter_choice} with a reported confidence of {confidence}. It rewarded {int(reward)} points.\n"
             accurate = 1 if action == np.argmax(env.mean_rewards) else 0
             row = [env.t-1, block_, block_trial, action, reward, confidence, accurate]       
             data.append(row)

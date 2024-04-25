@@ -6,8 +6,16 @@ Experiments/RestlessBandit/data/human.csv
 
 # Get rid of this exploratory data analysis old file (to not confuse new users) but might be useful later
 Analysis/barplot_per_experiment.py
+#Get rid of rebuttal files which also could be confusing
+Analysis/*/rebuttal*
+Analysis/rebuttal*
+Analysis/versions_comparisons.py
+Analysis/rebuttal_robustness_legend.py
+Analysis/human_perfs*
 
-
+# hpc logs and job scripts
+jobs
+logs/*.out
 
 
 
