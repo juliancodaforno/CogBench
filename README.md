@@ -56,18 +56,19 @@ For more information about CogBench, please refer to our [ICML paper](https://pr
 
 ## Cite
 
+If you use CogBench in your research, please cite our paper:
+
+```bibtex
 @InProceedings{pmlr-v235-coda-forno24a,
-  title = 	 {{C}og{B}ench: a large language model walks into a psychology lab},
+  title = 	 {CogBench: a large language model walks into a psychology lab},
   author =       {Coda-Forno, Julian and Binz, Marcel and Wang, Jane X and Schulz, Eric},
   booktitle = 	 {Proceedings of the 41st International Conference on Machine Learning},
   pages = 	 {9076--9108},
   year = 	 {2024},
-  editor = 	 {Salakhutdinov, Ruslan and Kolter, Zico and Heller, Katherine and Weller, Adrian and Oliver, Nuria and Scarlett, Jonathan and Berkenkamp, Felix},
   volume = 	 {235},
   series = 	 {Proceedings of Machine Learning Research},
   month = 	 {21--27 Jul},
   publisher =    {PMLR},
-  pdf = 	 {https://raw.githubusercontent.com/mlresearch/v235/main/assets/coda-forno24a/coda-forno24a.pdf},
-  url = 	 {https://proceedings.mlr.press/v235/coda-forno24a.html},
-  abstract = 	 {Large language models (LLMs) have significantly advanced the field of artificial intelligence. Yet, evaluating them comprehensively remains challenging. We argue that this is partly due to the predominant focus on performance metrics in most benchmarks. This paper introduces <em>CogBench</em>, a benchmark that includes ten behavioral metrics derived from seven cognitive psychology experiments. This novel approach offers a toolkit for phenotyping LLMs’ behavior. We apply <em>CogBench</em> to 40 LLMs, yielding a rich and diverse dataset. We analyze this data using statistical multilevel modeling techniques, accounting for the nested dependencies among fine-tuned versions of specific LLMs. Our study highlights the crucial role of model size and reinforcement learning from human feedback (RLHF) in improving performance and aligning with human behavior. Interestingly, we find that open-source models are less risk-prone than proprietary models and that fine-tuning on code does not necessarily enhance LLMs’ behavior. Finally, we explore the effects of prompt-engineering techniques. We discover that chain-of-thought prompting improves probabilistic reasoning, while take-a-step-back prompting fosters model-based behaviors.}
+  url = 	 {https://proceedings.mlr.press/v235/coda-forno24a.html}
 }
+
