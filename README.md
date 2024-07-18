@@ -48,7 +48,7 @@ python3 full_run.py --engine random --compare_with gpt-4 claude-1
 
 ## Reference
 
-For more information about CogBench, please refer to our [arXiv paper](https://arxiv.org/abs/2402.18225).
+For more information about CogBench, please refer to our [ICML paper](https://proceedings.mlr.press/v235/coda-forno24a.html).
 
 ## Contributing
 
